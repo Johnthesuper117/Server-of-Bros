@@ -1,5 +1,3 @@
-# so... what would be the best github workflow for this repo?
-# I want to have main.py as the server, with index.html as the client and publish it to github pages
 
 name: Deploy to GitHub Pages
 on:
