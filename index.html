@@ -1,5 +1,8 @@
 <!--
 I want a client that interacts with a server using WebSockets and displays messages received from the server in real-time, think something like a chat application. The client should also be able to send messages to the server. Please provide a simple HTML and JavaScript code snippet that accomplishes this.
+It's not working properly, please fix it.
+Make it dynamic and interactive.
+and updates live as messages are sent and received.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -12,6 +15,9 @@ I want a client that interacts with a server using WebSockets and displays messa
         #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; }
         #input { width: 80%; }
         #send { width: 18%; }
+        .message { margin: 5px 0; }
+        .sent { color: blue; }
+        .received { color: green; }
     </style>
 </head>
 <body>
@@ -25,7 +31,7 @@ I want a client that interacts with a server using WebSockets and displays messa
         const sendButton = document.getElementById('send');
 
         // Replace with your WebSocket server URL
-        const socket = new WebSocket('ws://your-websocket-server-url');
+        const socket = new WebSocket('ws://localhost:8080');
 
         socket.addEventListener('open', function (event) {
             console.log('Connected to WebSocket server');
@@ -33,16 +39,22 @@ I want a client that interacts with a server using WebSockets and displays messa
 
         socket.addEventListener('message', function (event) {
             const message = document.createElement('div');
-            message.textContent = event.data;
+            message.classList.add('message', 'received');
+            message.textContent = `Server: ${event.data}`;
             messagesDiv.appendChild(message);
             messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to the latest message
         });
 
         sendButton.addEventListener('click', function () {
-            const message = input.value;
-            if (message) {
-                socket.send(message);
-                input.value = ''; // Clear input field
+            const messageText = input.value;
+            if (messageText) {
+                socket.send(messageText);
+                const message = document.createElement('div');
+                message.classList.add('message', 'sent');
+                message.textContent = `You: ${messageText}`;
+                messagesDiv.appendChild(message);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to the latest message
+                input.value = '';
             }
         });
 
