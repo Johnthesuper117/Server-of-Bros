@@ -1,0 +1,40 @@
+# so... what would be the best github workflow for this repo?
+# I want to have main.py as the server, with index.html as the client and publish it to github pages
+
+name: Deploy to GitHub Pages
+on:
+  push:
+    branches:
+      - main  # Set the branch you want to deploy from
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      - name: Run the server (if needed)
+        run: |
+          python main.py &
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./  # Adjust this if your site files are in a different directory
+          publish_branch: gh-pages
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Deploy to GitHub Pages'
+          keep_files: false
+      - name: Clean up
+        run: |
+          pkill -f main.py || true
+          echo "Cleaned up server process"
+# Note: This workflow assumes that your static files (HTML, CSS, JS) are in the root directory.
+# If they are in a different directory, adjust the `publish_dir` accordingly. Also, ensure that your server (main.py) does not interfere with the deployment process.
