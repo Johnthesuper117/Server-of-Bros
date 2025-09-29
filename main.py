@@ -1,183 +1,168 @@
-# encrypted server used to send and receive date, files, and messages to and from clients - me
-# uses encryption to ensure secure communication
-# can handle multiple clients simultaneously using threading
-# supports file transfer and message broadcasting to all connected clients
-# includes error handling for robust operation
+# encrypted server that sends and recieves data like files and messages to and from HTML web clients 
 import socket
+import ssl
 import threading
 import os
-from cryptography.fernet import Fernet # for encryption and decryption
-import base64
-import hashlib
-from datetime import datetime
-import time
-import sys
+from cryptography.fernet import Fernet
+from flask import Flask, request, jsonify, send_file
 import logging
-import select
-import queue
-import struct
-import json
-import zlib
-import random
-import string
-import re
-import shutil
-import subprocess
-import platform
-import psutil
-import signal
-import errno
-import tempfile
-import traceback
-import inspect
-import ctypes
-import uuid
-import math
-import itertools
-import functools
-import copy
-import pickle
-import yaml
-import xml.etree.ElementTree as ET
-import sqlite3
-import http.server
-import urllib.request
-import urllib.parse
-import urllib.error
-import ssl
-import http.client
-import email
-import smtplib
-import imaplib
-import poplib
-import ftplib
-import telnetlib
-import paramiko
-import scp
-import dns.resolver
-import dns.zone
-import dns.query
-import dns.rdatatype
-import dns.exception
-import dns.name
-import dns.message
-import dns.rdtypes
-import dns.rdataclass
-import dns.rdatatype
-import dns.tsigkeyring
-import dns.update
-import dns.resolver
-import dns.zone
-import dns.query
-import dns.rdatatype
-import dns.exception
-import dns.name
-import dns.message
-import dns.rdtypes
-import dns.rdataclass
-import dns.rdatatype
-import dns.tsigkeyring
-import dns.update
-import dns.resolver
-import dns.zone
-import dns.query
-import dns.rdatatype
-import dns.exception
-import dns.name
-import dns.message
-import dns.rdtypes
-import dns.rdataclass
-import dns.rdatatype
-import dns.tsigkeyring
-import dns.update
-import dns.resolver
-import dns.zone
-import dns.query
-import dns.rdatatype
-import dns.exception
-import dns.name
-import dns.message
-import dns.rdtypes
-import dns.rdataclass
-import dns.rdatatype
-import dns.tsigkeyring
-import dns.update
-import dns.resolver
-import dns.zone
 
-#how many imports do I need?!?!?!?!?! - me
-#I think I went a bit overboard
-#but better too many than too few
-#right?
-#right???
-#anyway
-#let's get to the actual code
-class SecureServer:
-    def __init__(self, host='localhost', port=8080):
-        self.host = host
-        self.port = port
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.clients = []
-        self.client_threads = []
-        self.key = Fernet.generate_key()
-        self.cipher_suite = Fernet(self.key)
-        self.setup_logging()
-        self.start_server()
-    def setup_logging(self):
-        logging.basicConfig(level=logging.DEBUG,
-                            format='%(asctime)s - %(levelname)s - %(message)s',
-                            handlers=[logging.FileHandler("server.log"),
-                                      logging.StreamHandler()])
-    def start_server(self):
-        try:
-            self.server_socket.bind((self.host, self.port))
-            self.server_socket.listen(5)
-            logging.info(f"Server started on {self.host}:{self.port}")
-            self.accept_clients()
-        except Exception as e:
-            logging.error(f"Error starting server: {e}")
-            sys.exit(1)
-    def accept_clients(self):
-        while True:
-            client_socket, addr = self.server_socket.accept()
-            logging.info(f"Client connected from {addr}")
-            self.clients.append(client_socket)
-            client_thread = threading.Thread(target=self.handle_client, args=(client_socket,))
-            client_thread.start()
-            self.client_threads.append(client_thread)
-    def handle_client(self, client_socket):
-        try:
-            while True:
-                data = client_socket.recv(4096)
-                if not data:
-                    break
-                decrypted_data = self.cipher_suite.decrypt(data)
-                logging.info(f"Received data: {decrypted_data}")
-                self.broadcast(decrypted_data, client_socket)
-        except Exception as e:
-            logging.error(f"Error handling client: {e}")
-        finally:
-            client_socket.close()
-            self.clients.remove(client_socket)
-            logging.info("Client disconnected")
-    def broadcast(self, message, sender_socket):
-        for client in self.clients:
-            if client != sender_socket:
-                try:
-                    encrypted_message = self.cipher_suite.encrypt(message)
-                    client.sendall(encrypted_message)
-                except Exception as e:
-                    logging.error(f"Error broadcasting message: {e}")
-if __name__ == "__main__":
-    server = SecureServer(host='localhost', port=8080)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+app = Flask(__name__)
+clients = {}
+
+# Generate a key for encryption and decryption
+key = Fernet.generate_key()
+cipher_suite = Fernet(key)
+logger.info(f"Encryption key: {key.decode()}")  # Log the key for client use
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['ALLOWED_EXTENSIONS'] = ALLOWED_EXTENSIONS
+app.config['KEY'] = key.decode()
+app.config['CIPHER_SUITE'] = cipher_suite
+app.config['CLIENTS'] = clients
+app.config['logger'] = logger
+app.config['SSL_CERT'] = 'server.crt'
+app.config['SSL_KEY'] = 'server.key'
+app.config['HOST'] = '0.0.0.0'
+app.config['PORT'] = 50000
+app.config['FLASK_PORT'] = 5000
+app.config['FLASK_HOST'] = '0.0.0.0'
+app.config['THREADS'] = []
+app.config['SOCKET_TIMEOUT'] = 60  # seconds
+app.config['MAX_CONNECTIONS'] = 5
+app.config['BUFFER_SIZE'] = 4096  # bytes
+app.config['ENCODING'] = 'utf-8'
+app.config['DEBUG'] = True
+app.config['TESTING'] = False
+app.config['SECRET_KEY'] = os.urandom(24)
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # seconds
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
+app.config['JSON_SORT_KEYS'] = False
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+# how many app.configs do you need?
+app.config['MAX_FILE_SIZE'] = 16 * 1024 * 1024  # 16 MB
+app.config['MIN_FILE_SIZE'] = 1  # 1 byte
+app.config['ALLOWED_MIME_TYPES'] = {'text/plain', 'application/pdf', 'image/png', 'image/jpeg', 'image/gif'}
+app.config['RATE_LIMIT'] = '100/hour'
+app.config['CORS_HEADERS'] = 'Content-Type'
+app.config['CORS_RESOURCES'] = {r"/*": {"origins": "*"}}
+app.config['CORS_SUPPORTS_CREDENTIALS'] = True
+app.config['CORS_MAX_AGE'] = 21600  # 6 hours
+app.config['CORS_EXPOSE_HEADERS'] = ['Content-Type', 'Authorization']
+app.config['CORS_METHODS'] = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+app.config['CORS_ORIGINS'] = '*'
+app.config['CORS_ALLOW_HEADERS'] = ['Content-Type', 'Authorization']
+app.config['CORS_AUTOMATIC_OPTIONS'] = True
+app.config['CORS_SEND_WILDCARD'] = True
+app.config['CORS_VARY_HEADER'] = 'Origin'
+app.config['CORS_ALWAYS_SEND'] = True
+app.config['CORS_DEBUG'] = False
+app.config['CORS_LOGGER'] = logger
+app.config['CORS_SKIP_HEADERS'] = ['X-Requested-With', 'X-CSRFToken']
+app.config['CORS_EXPOSE_ALL_HEADERS'] = False
+app.config['CORS_MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
+app.config['CORS_DEFAULT_METHODS'] = ['GET', 'HEAD', 'POST', 'OPTIONS']
+app.config['CORS_DEFAULT_ORIGINS'] = '*'
+app.config['CORS_DEFAULT_ALLOW_HEADERS'] = ['Content-Type', 'Authorization']
+app.config['CORS_DEFAULT_EXPOSE_HEADERS'] = []
+app.config['CORS_DEFAULT_MAX_AGE'] = 21600  # 6 hours
+app.config['CORS_DEFAULT_SUPPORTS_CREDENTIALS'] = False
+app.config['CORS_DEFAULT_SEND_WILDCARD'] = False
+app.config['CORS_DEFAULT_VARY_HEADER'] = 'Origin'
+app.config['CORS_DEFAULT_ALWAYS_SEND'] = False
+app.config['CORS_DEFAULT_DEBUG'] = False
+app.config['CORS_DEFAULT_LOGGER'] = logger
+app.config['CORS_DEFAULT_SKIP_HEADERS'] = []
+app.config['CORS_DEFAULT_EXPOSE_ALL_HEADERS'] = False
+app.config['CORS_DEFAULT_MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
+
+#no like seiriously how many app.configs do you need?
+# this is getting ridiculous
+# alright last one I swear
+
+app.config['CORS_DEFAULT_RATE_LIMIT'] = '100/hour'
+app.config['CORS_DEFAULT_CORS_HEADERS'] = 'Content-Type'
+app.config['CORS_DEFAULT_CORS_RESOURCES'] = {r"/*": {"origins": "*"}}
+# alright I'm done now
+app.config['CORS_DEFAULT_CORS_SUPPORTS_CREDENTIALS'] = True
+app.config['CORS_DEFAULT_CORS_MAX_AGE'] = 21600  #
+app.config['CORS_DEFAULT_CORS_EXPOSE_HEADERS'] = ['Content-Type', 'Authorization']
+app.config['CORS_DEFAULT_CORS_METHODS'] = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+app.config['CORS_DEFAULT_CORS_ORIGINS'] = '*'
+app.config['CORS_DEFAULT_CORS_ALLOW_HEADERS'] = ['Content-Type', 'Authorization']
+app.config['CORS_DEFAULT_CORS_AUTOMATIC_OPTIONS'] = True
+# alright I'm done now for real
+# I think
+# maybe
+# probably
+# definitely
+# okay I'm done
+# for real
+# I swear
+# no really
+# I'm done
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    if file and allowed_file(file.filename):
+        filename = file.filename
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        app.config['logger'].info(f"File uploaded: {filename}")
+        return jsonify({'message': f'File {filename} uploaded successfully'}), 200
+    else:
+        return jsonify({'error': 'File type not allowed'}), 400
+@app.route('/download/<filename>', methods=['GET'])
+def download_file(filename):
+    if allowed_file(filename):
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if os.path.exists(filepath):
+            app.config['logger'].info(f"File downloaded: {filename}")
+            return send_file(filepath, as_attachment=True)
+        else:
+            return jsonify({'error': 'File not found'}), 404
+    else:
+        return jsonify({'error': 'File type not allowed'}), 400
+@app.route('/message', methods=['POST'])
+def receive_message():
+    data = request.get_json()
+    if not data or 'message' not in data:
+        return jsonify({'error': 'No message provided'}), 400
+    encrypted_message = data['message'].encode(app.config['ENCODING'])
     try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        logging.info("Server shutting down")
-        for client in server.clients:
-            client.close()
-        server.server_socket.close()
-        for thread in server.client_threads:
-            thread.join()
-        logging.info("Server shut down successfully")
+        decrypted_message = app.config['CIPHER_SUITE'].decrypt(encrypted_message).decode(app.config['ENCODING'])
+        app.config['logger'].info(f"Received message: {decrypted_message}")
+        return jsonify({'message': 'Message received successfully'}), 200
+    except Exception as e:
+        app.config['logger'].error(f"Decryption error: {e}")
+        return jsonify({'error': 'Decryption failed'}), 400
+def start_flask():
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+    context.load_cert_chain(app.config['SSL_CERT'], app.config['SSL_KEY'])
+    app.run(host=app.config['FLASK_HOST'], port=app.config['FLASK_PORT'], ssl_context=context, debug=app.config['DEBUG'], threaded=True)
+if __name__ == '__main__':
+    flask_thread = threading.Thread(target=start_flask)
+    flask_thread.start()
+    app.config['THREADS'].append(flask_thread)
+    for thread in app.config['THREADS']:
+        thread.join()
+    logger.info("Server shutdown.")
+    # Wait for all threads to complete
+
